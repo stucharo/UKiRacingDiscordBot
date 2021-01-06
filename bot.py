@@ -4,7 +4,7 @@ import requests
 import discord
 
 
-def get_iRacing_session():
+async def get_iRacing_session():
     loginUrl = "https://members.iracing.com/download/Login?"
     creds = {
         "username": os.getenv("IRACING_USERNAME"),
@@ -13,6 +13,17 @@ def get_iRacing_session():
     s = requests.Session()
     s.post(loginUrl, creds)
     return s
+
+
+async def get_driver_status(session, name):
+    payload = {"searchTerms": name}
+    d = session.get(
+        "https://members.iracing.com/membersite/member/GetDriverStatus",
+        params=payload,
+    )
+    drivers = d.json()["searchRacers"]
+    
+    return next(driver for driver in drivers if driver["name"] == name.replace(" ", "+"))
 
 
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
@@ -31,13 +42,10 @@ async def on_message(message):
         return
 
     if message.content == "$iRacing":
-        payload = {"searchTerms": message.author.display_name}
-        s = get_iRacing_session()
-        d = s.get(
-            "https://members.iracing.com/membersite/member/GetDriverStatus",
-            params=payload,
-        )
-        await message.channel.send(f"{d.json()}")
+        s = await get_iRacing_session()
+        d = await get_driver_status(s, message.author.display_name)
 
+        #await message.channel.send(f"{d.json()}")
+        print(f"custID = {d['custid']}")
 
 client.run(DISCORD_TOKEN)
